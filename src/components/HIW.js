@@ -1,7 +1,7 @@
 import React from 'react';
-import IMG from "../images/AB1.webp";
+import IMG from "../images/ab.jpg";
 import IMG2 from "../images/AB3.webp";
-import IMG3 from "../images/AB6.webp";
+import IMG3 from "../images/Ab5.webp";
 import IMG4 from "../images/AB@.webp";
 
 const HIW = () => {
