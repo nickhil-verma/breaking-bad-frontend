@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const cdsimer = { name: "Dr Chandramma Dayananda Sagar institute of Medical Education and Research ಸಿ.ಡಿ.ಸೈಮರ್ CDSIMER", lat: 12.660789, lng: 77.450055 }; // example coords
+const cdsimer = { name: " CDSIMER", lat: 12.660789, lng: 77.450055 }; // example coords
 //12.660789, 77.450055
 
 
