@@ -37,6 +37,15 @@ const Dashboard = () => {
     else setUserName(name || '');
   }, [navigate]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (uniqueId && uniqueId.length === 10) {
+        fetchLatestDeviceData();
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [uniqueId]);
+
   const parseToGraphData = (input, label) => {
     if (!input) return [];
     const values = Array.isArray(input)
@@ -44,7 +53,7 @@ const Dashboard = () => {
       : typeof input === 'string'
       ? input.split(',')
       : [];
-    return values.map((val, index) => ({
+    return values.slice(-10).map((val, index) => ({
       name: `${label} ${index + 1}`,
       value: parseFloat(val)
     }));
@@ -60,8 +69,7 @@ You are a medical AI. Analyze the following patient device data and provide a br
 - Temperature: ${deviceData.temperature}
 - ECG Peaks: ${deviceData.ecgPeak}
 
-Respond in 3-4 lines in simple language for a doctor. Point out anything abnormal or concerning.
-    `;
+Respond in 3-4 lines in simple language for a doctor. Point out anything abnormal or concerning.`;
 
     try {
       const res = await fetch(
@@ -87,7 +95,7 @@ Respond in 3-4 lines in simple language for a doctor. Point out anything abnorma
     } catch (error) {
       console.error('Gemini AI error:', error);
       setGeminiResponse('Failed to fetch AI response.');
-    }    
+    }
   };
 
   const fetchDeviceData = async () => {
@@ -103,18 +111,6 @@ Respond in 3-4 lines in simple language for a doctor. Point out anything abnorma
       if (response.ok && data.data) {
         setDeviceData(data.data);
         setNotFound(false);
-
-        const o2Data = parseToGraphData(data.data.o2, 'O2');
-        const hrData = parseToGraphData(data.data.heartRateECG, 'HR');
-
-        const latestO2 = o2Data.at(-1)?.value;
-        const latestHR = hrData.at(-1)?.value;
-
-        if (latestO2 < 90 || latestHR < 50) {
-          playAlertSound();
-          setAlertValues({ o2: latestO2, hr: latestHR });
-          setShowPopup(true);
-        }
 
         const updatedAt = new Date(data.data.updatedAt);
         const now = new Date();
@@ -147,6 +143,30 @@ Respond in 3-4 lines in simple language for a doctor. Point out anything abnorma
       setDeviceData(null);
       setNotFound(true);
       toast.error('Error fetching device data');
+    }
+  };
+
+  const fetchLatestDeviceData = async () => {
+    try {
+      const response = await fetch(`https://breakin-badmicroservices.vercel.app/api/${uniqueId}`);
+      const data = await response.json();
+
+      if (response.ok && data.data) {
+        setDeviceData(data.data);
+
+        const o2Data = parseToGraphData(data.data.o2, 'O2');
+        const hrData = parseToGraphData(data.data.heartRateECG, 'HR');
+        const latestO2 = o2Data.at(-1)?.value;
+        const latestHR = hrData.at(-1)?.value;
+
+        if ((latestO2 < 90 || latestHR < 50) && !showPopup) {
+          playAlertSound();
+          setAlertValues({ o2: latestO2, hr: latestHR });
+          setShowPopup(true);
+        }
+      }
+    } catch (error) {
+      console.error('Auto-refresh error:', error);
     }
   };
 
@@ -192,12 +212,12 @@ Respond in 3-4 lines in simple language for a doctor. Point out anything abnorma
     >
       <h3 className="text-xl font-semibold text-center mb-2">{title}</h3>
       <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={data}>
+        <LineChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-          <XAxis dataKey="name" stroke="#ccc" />
+          <XAxis dataKey="name" stroke="#ccc" hide />
           <YAxis stroke="#ccc" />
           <Tooltip />
-          <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} />
+          <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </motion.div>
@@ -247,7 +267,7 @@ Respond in 3-4 lines in simple language for a doctor. Point out anything abnorma
             {renderChartCard('Temperature (°C)', temperatureData, '#34D399')}
             {renderChartCard('ECG Peaks', ecgPeaksData, '#FBBF24')}
           </motion.div>
-            <Appointment/>
+          <Appointment />
           <div className="flex gap-4 mt-6 flex-wrap justify-center">
             <button
               onClick={generatePDFReport}
