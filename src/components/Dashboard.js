@@ -10,8 +10,10 @@ import {
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import 'react-toastify/dist/ReactToastify.css';
+import Appointment from './Appointment';
 
-// Sound alert
+const GEMINI_API_KEY = process.env.YOUR_API_KEY;
+
 const playAlertSound = () => {
   const audio = new Audio('/alert.mp3');
   audio.play().catch((e) => console.error('Audio play failed:', e));
@@ -25,6 +27,7 @@ const Dashboard = () => {
   const [lastSeen, setLastSeen] = useState('');
   const [showPopup, setShowPopup] = useState(false);
   const [alertValues, setAlertValues] = useState({ o2: null, hr: null });
+  const [geminiResponse, setGeminiResponse] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,6 +48,46 @@ const Dashboard = () => {
       name: `${label} ${index + 1}`,
       value: parseFloat(val)
     }));
+  };
+
+  const getGeminiInference = async () => {
+    if (!deviceData) return;
+
+    const prompt = `
+You are a medical AI. Analyze the following patient device data and provide a brief medical insight:
+- O2 Levels: ${deviceData.o2}
+- Heart Rate: ${deviceData.heartRateECG}
+- Temperature: ${deviceData.temperature}
+- ECG Peaks: ${deviceData.ecgPeak}
+
+Respond in 3-4 lines in simple language for a doctor. Point out anything abnormal or concerning.
+    `;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }]
+              }
+            ]
+          })
+        }
+      );
+
+      const result = await res.json();
+      const reply =
+        result?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        'No response from Gemini';
+      setGeminiResponse(reply);
+    } catch (error) {
+      console.error('Gemini AI error:', error);
+      setGeminiResponse('Failed to fetch AI response.');
+    }    
   };
 
   const fetchDeviceData = async () => {
@@ -76,7 +119,6 @@ const Dashboard = () => {
         const updatedAt = new Date(data.data.updatedAt);
         const now = new Date();
         const diffMs = now - updatedAt;
-
         const minutes = Math.floor(diffMs / 60000);
         const hours = Math.floor(minutes / 60);
         const days = Math.floor(hours / 24);
@@ -95,6 +137,7 @@ const Dashboard = () => {
         }
 
         setLastSeen(timeAgo);
+        await getGeminiInference();
       } else {
         setDeviceData(null);
         setNotFound(true);
@@ -204,15 +247,35 @@ const Dashboard = () => {
             {renderChartCard('Temperature (°C)', temperatureData, '#34D399')}
             {renderChartCard('ECG Peaks', ecgPeaksData, '#FBBF24')}
           </motion.div>
-
-          <button
-            onClick={generatePDFReport}
-            className="mt-6 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold"
-          >
-            📄 Export Report
-          </button>
+            <Appointment/>
+          <div className="flex gap-4 mt-6 flex-wrap justify-center">
+            <button
+              onClick={generatePDFReport}
+              className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold"
+            >
+              📄 Export Report
+            </button>
+            <button
+              onClick={getGeminiInference}
+              className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 text-black rounded-lg font-semibold"
+            >
+              🔁 Refresh AI Insight
+            </button>
+          </div>
 
           {lastSeen && <p className="text-sm text-gray-400 mt-4">{lastSeen}</p>}
+
+          {geminiResponse && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
+              className="mt-6 bg-white/10 border border-white/20 p-4 rounded-xl max-w-2xl text-white text-sm"
+            >
+              <h3 className="text-lg font-semibold mb-2">🧠 AI Medical Insight:</h3>
+              <p>{geminiResponse}</p>
+            </motion.div>
+          )}
         </>
       )}
 

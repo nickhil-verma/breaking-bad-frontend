@@ -9,6 +9,7 @@ import Login from './components/Login';
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Stat from './components/Stat';
+import Emergency from './components/Emergency';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/stat" element={<Stat />} />
+      <Route path="/emergency" element={<Emergency />} />
 
         {/* Main App Layout */}
         <Route path="*" element={
